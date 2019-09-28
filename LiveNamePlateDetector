@@ -1,0 +1,48 @@
+import numpy as np
+import cv2
+import pafy
+from openalpr import Alpr
+
+vPafy = pafy.new('https://www.youtube.com/watch?v=j1bxSUPXsQA')
+play = vPafy.getbest(preftype="webm")
+alpr = Alpr("eu", "openalpr.conf", "runtime_data")
+if not alpr.is_loaded():
+    print("Error loading OpenALPR")
+    sys.exit(1)
+
+alpr.set_top_n(1)
+alpr.set_default_region("eu")
+
+#cap = cv2.VideoCapture("http://91.190.227.198/mjpg/video.mjpg")
+cap = cv2.VideoCapture(play.url)
+
+while(True):    
+    ret, frame = cap.read() 
+
+    if ret:
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+        
+        cv2.imwrite("img.jpg", frame)
+
+        results = alpr.recognize_file("img.jpg")
+
+        frame=np.asarray(frame)
+        new_image=np.copy(frame)
+        confidence=0
+        label=''
+        for plate in results['results']:
+            for candidate in plate['candidates']:
+                label=candidate['plate']+":"+str(round(candidate['confidence'],3))
+                cv2.putText(new_image,label,(plate['coordinates'][0]['x'],plate['coordinates'][0]['y']),cv2.FONT_HERSHEY_COMPLEX_SMALL , 0.8, (0, 230, 0), 1, cv2.LINE_AA)
+                #cv2.imshow('frame',new_image)
+        cv2.imshow('frame',new_image)
+    else:
+        break;
+
+    
+
+# When everything done, release the capture
+cap.release()
+alpr.unload()
+cv2.destroyAllWindows()
